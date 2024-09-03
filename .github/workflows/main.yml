@@ -23,7 +23,7 @@ jobs:
     name: "${{matrix.build_type}} S=${{matrix.shared_type}} P=${{matrix.profiling}}"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Setup Build Environment ${{ runner.os }}
       id: setup
