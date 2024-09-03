@@ -1,0 +1,92 @@
+name: CI Build
+
+# Triggers on push and branches on the master
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CC : gcc
+  FC : gfortran
+  CXX : g++
+
+# Allows to run this workflow manually from the Actions tab
+workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: [self-hosted, Linux]
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type : [ Debug, Release ]
+        shared_type : [ OFF, ON ]
+        profiling : [ OFF, ON ]
+
+    name: "${{matrix.build_type}} S=${{matrix.shared_type}} P=${{matrix.profiling}}"
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Check PR updates Flex/Bison Archive iff .y/.l modified
+      if: ${{ github.event_name == 'pull_request' }}
+      shell: bash
+      run: |
+        # Check if .l/.y files have been modified without corresponding update with `cmake --build . --target parsec_pregen_flex_bison`
+        if [[ `git --version | cut -d " " -f 3` > "2.0" ]]; then
+          # Make sure we fetch the branch we want to compare with
+          git fetch origin ${{ github.base_ref }}
+          git diff --name-only --diff-filter=AMRD origin/${{ github.base_ref }} -- contrib/pregen_flex_bison.tar '*.[ly]' | awk '/pregen_flex_bison.tar/{t=1} /.[ly]/{s=1} END{if(t-s) exit 1}'
+        fi
+
+    - name: Configure CMake
+      id: configure
+      timeout-minutes: 10
+      shell: bash
+      run: |
+        source .github/CI/env_setup.sh ${{matrix.build_type}} ${{matrix.shared_type}} ${{matrix.profiling}}
+        cmake -E make_directory build
+        cd build
+        cmake $GITHUB_WORKSPACE $BUILD_CONFIG
+
+    - name: Build
+      working-directory: build
+      timeout-minutes: 10
+      shell: bash
+      run: |
+        source .github/CI/env_setup.sh
+        cmake --build .
+
+    - name: Install
+      working-directory: build
+      timeout-minutes: 2
+      shell: bash
+      run: |
+          source .github/CI/env_setup.sh
+          cmake --build . --target install
+
+    - name: Save Build Artifact
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: CMake-error-log
+        path: build/CMakeFiles/CMakeError.log
+
+    - name: Test
+      if: ${{ startsWith(matrix.build_type, 'Release') }}
+      working-directory: build
+      timeout-minutes: 10
+      shell: bash
+      run: |
+        source .github/CI/env_setup.sh
+        ctest --output-on-failure
+
+    - name: Save Testing Artifact
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: LastTest_log
+        path: build/Testing/Temporary/LastTest.log
+

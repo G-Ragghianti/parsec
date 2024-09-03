@@ -1,0 +1,52 @@
+name: CI Build
+
+# Triggers on push and branches on the master
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+# Allows to run this workflow manually from the Actions tab
+workflow_dispatch:
+
+jobs:
+  all:
+    runs-on: [self-hosted, Linux]
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type : [ Debug, Release ]
+        shared_type : [ OFF, ON ]
+        profiling : [ OFF, ON ]
+
+    name: "${{matrix.build_type}} S=${{matrix.shared_type}} P=${{matrix.profiling}}"
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup Build Environment ${{ runner.os }}
+      id: setup
+      run: .github/CI/setup.sh ${{matrix.build_type}} ${{matrix.shared_type}} ${{matrix.profiling}}
+
+    - name: Configure CMake
+      id: configure
+      timeout-minutes: 10
+      run: .github/CI/configure.sh ${{matrix.build_type}} ${{matrix.shared_type}} ${{matrix.profiling}}
+
+    - name: Build
+      run: .github/CI/build.sh ${{matrix.build_type}} ${{matrix.shared_type}} ${{matrix.profiling}}
+
+    - name: Install
+      run: .github/CI/install.sh ${{matrix.build_type}} ${{matrix.shared_type}} ${{matrix.profiling}}
+
+    - name: Test
+      run: .github/CI/test.sh ${{matrix.build_type}} ${{matrix.shared_type}} ${{matrix.profiling}}
+
+    - name: Save Artifact
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: CMake-error-log
+        path: ${{ env.BUILD_DIRECTORY }}/CMakeFiles/CMakeError.log
+

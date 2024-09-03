@@ -1,0 +1,7 @@
+#!/bin/bash
+
+source .github/CI/env_setup.sh
+echo cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE $BUILD_CONFIG
+cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE $BUILD_CONFIG
+
+
