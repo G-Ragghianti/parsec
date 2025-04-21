@@ -22,7 +22,7 @@ jobs:
             profiling: OFF
           - build_type: Release
             shared_type: OFF
-    name: "${{matrix.build_type}} Shared=${{matrix.shared_type}} Profile=${{matrix.profiling}} ${{matrix.device}}"
+    name: "PaRSEC ${{matrix.build_type}} Shared=${{matrix.shared_type}} Profile=${{matrix.profiling}} ${{matrix.device}}"
     runs-on: [ "${{matrix.device}}", self-hosted ]
     env:
       BUILD_TYPE:  ${{matrix.build_type}}
